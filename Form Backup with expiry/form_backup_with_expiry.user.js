@@ -1,6 +1,6 @@
     // ==UserScript==
     // @author        luckydonald
-    // @version       2.5
+    // @version       2.4
     // @name          Textarea Backup with expiry
     // @namespace     de.luckydonald.userscripts.form-autosave
     // @description   Retains text entered into input fields, textareas and contentEditables, and expires those saved data after certain time span.
