@@ -1,3 +1,4 @@
+/* based on https://github.com/bmsuseluda/teams-fullscreen/blob/e66b51ed06e8428b0fde3a51b9c0a771294e974e/overwrites.css, GPL-3.0 license */
 @-moz-document url-prefix("https://teams.microsoft.com/v2/") {
 body.fullscreen [data-tid="experience-layout"] {
     display: flex;
