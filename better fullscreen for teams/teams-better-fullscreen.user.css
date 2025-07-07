@@ -1,0 +1,55 @@
+@-moz-document url-prefix("https://teams.microsoft.com/v2/") {
+body.fullscreen [data-tid="experience-layout"] {
+    display: flex;
+    width: 100dvw;
+    max-width: 100dvw;
+    align-items: stretch;
+}
+
+body.fullscreen [data-tid="app-layout-area--title-bar"],
+body.fullscreen [data-tid="ubar-indicators"],
+body.fullscreen [data-tid="app-layout-area--notifications"],
+body.fullscreen [data-tid="app-layout-area--nav"],
+body.fullscreen [data-tid="app-layout-area--contextual-notifications"] {
+    display: none;
+}
+
+body.fullscreen [data-tid="app-layout-area--header"] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    background-color: transparent;
+    transition: 300ms ease-in-out;
+
+    > div {
+        background-color: transparent;
+    }
+
+    :hover {
+        background-color: var(--colorNeutralBackground1);
+        opacity: 100%;
+    }
+}
+
+body.fullscreen [data-tid="ubar-toolbar-wrapper"] {
+    box-shadow: none;
+    grid-template-columns: fit-content(100%) fit-content(100%);
+    transition: 300ms ease-in-out;
+    opacity: 20%;
+}
+
+body.fullscreen [data-tid="slot-measurer"] {
+    background-color: transparent;
+}
+
+body.fullscreen .fui-MenuPopover, .fui-PopoverSurface {
+    background-color: var(--colorNeutralBackground1);
+}
+[data-tid="Stage-wrapper"] .fui-Primitive [data-tid="participant-info-nametag"] { background: hotpink}
+
+body.fullscreen [data-tid="app-layout-area--main"] {
+    min-width: 100%;
+    max-width: 100%;
+}
+}
