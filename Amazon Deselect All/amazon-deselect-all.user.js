@@ -27,10 +27,14 @@
 (function () {
   'use strict';
 
+  let isRunning = false;
+  let positionListenersInstalled = false;
+
   // creates UI: start button after <a id="select-all"> and a body-owned progress bar
   function createUI() {
     const selectAllAnchor = document.querySelector('a#select-all');
     if (!selectAllAnchor) return null;
+    if (document.getElementById('deselect-all-first-checkbox-btn')) return null;
 
     const container = document.createElement('div');
     container.id = 'deselect-all-first-checkbox-ui';
@@ -39,65 +43,82 @@
     container.style.verticalAlign = 'middle';
 
     const btn = document.createElement('button');
-    btn.textContent = 'Deselect all';
+    btn.textContent = isRunning ? 'Running...' : 'Deselect all';
     btn.id = 'deselect-all-first-checkbox-btn';
+    btn.disabled = isRunning;
     btn.style.padding = '6px 10px';
     btn.style.cursor = 'pointer';
     btn.style.border = '1px solid #888';
     btn.style.borderRadius = '4px';
     btn.style.background = '#fff';
 
-    const progressWrap = document.createElement('div');
-    progressWrap.id = 'deselect-progress-wrap';
-    progressWrap.style.width = '360px';
-    progressWrap.style.maxWidth = '80vw';
-    progressWrap.style.boxSizing = 'border-box';
-    progressWrap.style.padding = '8px';
-    progressWrap.style.background = '#fff';
-    progressWrap.style.border = '1px solid #d5d9d9';
-    progressWrap.style.borderRadius = '6px';
-    progressWrap.style.boxShadow = '0 2px 8px rgba(15, 17, 17, 0.15)';
-    progressWrap.style.zIndex = '2147483647';
-    progressWrap.style.display = 'none';
+    let progressWrap = document.getElementById('deselect-progress-wrap');
+    let barBg = document.getElementById('deselect-progress-segments');
+    let status = document.getElementById('deselect-progress-status');
+    let log = document.getElementById('deselect-progress-log');
+    if (!progressWrap) {
+      progressWrap = document.createElement('div');
+      progressWrap.id = 'deselect-progress-wrap';
+      progressWrap.style.width = '360px';
+      progressWrap.style.maxWidth = '80vw';
+      progressWrap.style.boxSizing = 'border-box';
+      progressWrap.style.padding = '8px';
+      progressWrap.style.background = '#fff';
+      progressWrap.style.border = '1px solid #d5d9d9';
+      progressWrap.style.borderRadius = '6px';
+      progressWrap.style.boxShadow = '0 2px 8px rgba(15, 17, 17, 0.15)';
+      progressWrap.style.zIndex = '2147483647';
+      progressWrap.style.display = 'none';
 
-    const barBg = document.createElement('div');
-    barBg.id = 'deselect-progress-segments';
-    barBg.style.width = '100%';
-    barBg.style.height = '12px';
-    barBg.style.background = '#eee';
-    barBg.style.border = '1px solid #ccc';
-    barBg.style.borderRadius = '6px';
-    barBg.style.overflow = 'hidden';
-    barBg.style.display = 'flex';
-    barBg.style.gap = '1px';
+      barBg = document.createElement('div');
+      barBg.id = 'deselect-progress-segments';
+      barBg.style.width = '100%';
+      barBg.style.height = '12px';
+      barBg.style.background = '#eee';
+      barBg.style.border = '1px solid #ccc';
+      barBg.style.borderRadius = '6px';
+      barBg.style.overflow = 'hidden';
+      barBg.style.display = 'flex';
+      barBg.style.gap = '1px';
 
-    const status = document.createElement('div');
-    status.id = 'deselect-progress-status';
-    status.style.fontSize = '12px';
-    status.style.marginTop = '6px';
-    status.style.color = '#333';
+      status = document.createElement('div');
+      status.id = 'deselect-progress-status';
+      status.style.fontSize = '12px';
+      status.style.marginTop = '6px';
+      status.style.color = '#333';
 
-    const log = document.createElement('div');
-    log.id = 'deselect-progress-log';
-    log.style.fontSize = '11px';
-    log.style.marginTop = '6px';
-    log.style.color = '#555';
-    log.style.maxHeight = '90px';
-    log.style.overflowY = 'auto';
-    log.style.lineHeight = '1.35';
+      log = document.createElement('div');
+      log.id = 'deselect-progress-log';
+      log.style.fontSize = '11px';
+      log.style.marginTop = '6px';
+      log.style.color = '#555';
+      log.style.maxHeight = '90px';
+      log.style.overflowY = 'auto';
+      log.style.lineHeight = '1.35';
 
-    progressWrap.appendChild(barBg);
-    progressWrap.appendChild(status);
-    progressWrap.appendChild(log);
+      progressWrap.appendChild(barBg);
+      progressWrap.appendChild(status);
+      progressWrap.appendChild(log);
+      document.body.appendChild(progressWrap);
+    }
 
     container.appendChild(btn);
 
     selectAllAnchor.parentNode.insertBefore(container, selectAllAnchor.nextSibling);
-    document.body.appendChild(progressWrap);
-    positionProgress(progressWrap, container);
-    window.addEventListener('scroll', () => positionProgress(progressWrap, container), { passive: true });
-    window.addEventListener('resize', () => positionProgress(progressWrap, container), { passive: true });
+    positionCurrentProgress();
+    if (!positionListenersInstalled) {
+      window.addEventListener('scroll', positionCurrentProgress, { passive: true });
+      window.addEventListener('resize', positionCurrentProgress, { passive: true });
+      positionListenersInstalled = true;
+    }
     return { btn, segments: barBg, status, log };
+  }
+
+  function positionCurrentProgress() {
+    positionProgress(
+      document.getElementById('deselect-progress-wrap'),
+      document.getElementById('deselect-all-first-checkbox-ui')
+    );
   }
 
   function positionProgress(progressWrap, anchorEl) {
@@ -170,32 +191,28 @@
       return name.trim();
     }
 
-    function resolveEntry(entry) {
-      const currentItems = getActiveItems();
-      let item = currentItems.find(it => it === entry.root);
-      if (!item && entry.asin) {
-        item = currentItems.find(it => it.getAttribute('data-asin') === entry.asin);
-      }
-      if (!item) return null;
-      return {
-        root: item,
-        checkbox: findCartCheckbox(item),
-        name: getItemName(item) || entry.name,
-      };
-    }
-
-    const activeItems = getActiveItems();
-
-    const targetEntries = activeItems.map(it => {
-      return {
-        root: it,
-        asin: it.getAttribute('data-asin') || '',
+    function getTargetEntries() {
+      return getActiveItems().map(it => ({
         checkbox: findCartCheckbox(it),
         name: getItemName(it),
-      };
-    }).filter(e => e.checkbox);
+      })).filter(e => e.checkbox);
+    }
 
-    const toUncheck = targetEntries.filter(e => e.checkbox.checked);
+    function getCheckedEntries() {
+      return getTargetEntries().filter(e => e.checkbox.checked);
+    }
+
+    async function waitForNextCheckedEntry(timeout) {
+      let next = getCheckedEntries().find(e => !e.checkbox.disabled) || null;
+      if (next) return next;
+      await waitFor(() => {
+        next = getCheckedEntries().find(e => !e.checkbox.disabled) || null;
+        return Boolean(next);
+      }, timeout);
+      return next;
+    }
+
+    const toUncheck = getCheckedEntries();
     const total = toUncheck.length;
     const uiSegments = document.getElementById('deselect-progress-segments');
     const uiStatus = document.getElementById('deselect-progress-status');
@@ -252,79 +269,53 @@
       return txt;
     }
 
-    async function waitForResolvedCheckbox(entry, timeout) {
-      let latest = resolveEntry(entry);
-      if (latest && latest.checkbox && !latest.checkbox.disabled) return latest;
-      await waitFor(() => {
-        latest = resolveEntry(entry);
-        return latest && latest.checkbox && (!latest.checkbox.checked || !latest.checkbox.disabled);
-      }, timeout);
-      return latest;
-    }
-
     const start = Date.now();
     logStep(`Found ${total} checked active item${total === 1 ? '' : 's'} to deselect.`);
-    for (let i = 0; i < toUncheck.length; i++) {
-      const entry = toUncheck[i];
-      let latest = resolveEntry(entry);
-      let chk = latest ? latest.checkbox : entry.checkbox;
-      let name = latest ? latest.name : entry.name;
-      const lab = chk.closest('label');
+    for (let i = 0; i < total; i++) {
       const itemNumber = i + 1;
+      const expectedRemaining = total - itemNumber;
+      let entry = null;
+      let chk = null;
+      let name = '';
+
+      logStep(`${progressText(i, start)} - waiting until the next checked checkbox is enabled.`);
+      entry = await waitForNextCheckedEntry(30000).catch(() => null);
+      if (!entry) {
+        const remaining = getCheckedEntries().length;
+        logStep(`${progressText(i, start)} - no enabled checked checkbox found; ${remaining} still selected.`);
+        break;
+      }
+
+      chk = entry.checkbox;
+      name = entry.name;
+      const lab = chk.closest('label');
       if (lab) lab.style.background = 'hotpink';
       setSegment(i, '#9e9e9e', `${itemNumber}/${total}: - ${name}`);
       logStep(`[STARTING] ${progressText(i, start, name)}`);
 
-      // scroll
       logStep(`${progressText(i, start)} - scrolling to checkbox.`);
       await scrollToCheckbox(chk);
 
-      // wait until enabled
-      logStep(`${progressText(i, start)} - waiting until checkbox is enabled.`);
-      const enabled = await waitForResolvedCheckbox(entry, 30000).then(resolved => {
-        latest = resolved;
-        chk = latest.checkbox;
-        name = latest.name;
-        return !chk.checked || !chk.disabled;
-      }).catch(() => false);
-
-      if (enabled && chk.checked && !chk.disabled) {
+      if (chk.checked && !chk.disabled) {
         logStep(`${progressText(i, start)} - clicking checkbox.`);
-        await scrollToCheckbox(chk);
         chk.focus();
         chk.click();
       } else {
-        logStep(`${progressText(i, start)} - skipped click because checkbox is ${enabled ? 'already deselected' : 'still disabled'}.`);
+        logStep(`${progressText(i, start)} - skipped click because checkbox is ${chk.checked ? 'still disabled' : 'already deselected'}.`);
       }
 
-      // Amazon may replace rows or leave the clicked checkbox disabled, so re-resolve before each check.
+      // Amazon replaces rows during Ajax updates, so observe the fresh checked count instead of the clicked node.
       logStep(`${progressText(i, start)} - waiting for Amazon update to start.`);
-      const becameDisabled = await waitFor(() => {
-        const resolved = resolveEntry(entry);
-        if (!resolved || !resolved.checkbox) return true;
-        chk = resolved.checkbox;
-        name = resolved.name;
-        return chk.disabled === true || chk.checked === false;
-      }, 5000).then(() => true).catch(() => false);
+      const becameDisabled = await waitFor(() => chk.disabled === true || getCheckedEntries().length <= expectedRemaining, 5000).then(() => true).catch(() => false);
       logStep(`${progressText(i, start)} - update ${becameDisabled ? 'started' : 'did not disable checkbox'}; waiting for it to finish.`);
-      const becameEnabled = await waitFor(() => {
-        const resolved = resolveEntry(entry);
-        if (!resolved || !resolved.checkbox) return true;
-        chk = resolved.checkbox;
-        name = resolved.name;
-        return chk.checked === false || chk.disabled === false;
-      }, 30000).then(() => true).catch(() => false);
+      const becameEnabled = await waitFor(() => getCheckedEntries().length <= expectedRemaining || Boolean(getCheckedEntries().find(e => !e.checkbox.disabled)), 30000).then(() => true).catch(() => false);
       logStep(`${progressText(i, start)} - update ${becameEnabled ? 'finished' : 'did not re-enable before timeout'}; verifying state.`);
 
       await delay(300);
-      latest = resolveEntry(entry);
-      if (latest && latest.checkbox) {
-        chk = latest.checkbox;
-        name = latest.name;
-      }
-      if (chk.checked) {
+      const remaining = getCheckedEntries().length;
+      if (remaining > expectedRemaining) {
         setSegment(i, '#ff9800', `${itemNumber}/${total}: still selected - ${name}`);
-        logStep(`${progressText(itemNumber, start)} - still selected after timeouts.`);
+        logStep(`${progressText(itemNumber, start)} - ${remaining} item${remaining === 1 ? '' : 's'} still selected.`);
       } else {
         setSegment(i, '#4caf50', `${itemNumber}/${total}: deselected - ${name}`);
         logStep(`${progressText(itemNumber, start)} - confirmed deselected.`);
@@ -356,16 +347,25 @@
     });
   }
 
-  // attach UI and event
-  const ui = createUI();
-  if (ui && ui.btn) {
+  function setButtonState(running) {
+    const btn = document.getElementById('deselect-all-first-checkbox-btn');
+    if (!btn) return;
+    btn.disabled = running;
+    btn.textContent = running ? 'Running...' : 'Deselect all';
+  }
+
+  function installUI() {
+    const ui = createUI();
+    if (!ui || !ui.btn) return;
+
     ui.btn.addEventListener('click', async function () {
-      ui.btn.disabled = true;
-      ui.btn.textContent = 'Running...';
+      if (isRunning) return;
+      isRunning = true;
+      setButtonState(true);
       const progressWrap = document.getElementById('deselect-progress-wrap');
       if (progressWrap) {
         progressWrap.style.display = 'block';
-        positionProgress(progressWrap, document.getElementById('deselect-all-first-checkbox-ui'));
+        positionCurrentProgress();
       }
       if (document.getElementById('deselect-progress-segments')) {
         document.getElementById('deselect-progress-segments').replaceChildren();
@@ -384,9 +384,13 @@
           document.getElementById('deselect-progress-status').textContent = 'Error: see console.';
         }
       } finally {
-        ui.btn.disabled = false;
-        ui.btn.textContent = 'Deselect all';
+        isRunning = false;
+        installUI();
+        setButtonState(false);
       }
     }, { once: false });
   }
+
+  installUI();
+  new MutationObserver(() => installUI()).observe(document.documentElement, { childList: true, subtree: true });
 })();

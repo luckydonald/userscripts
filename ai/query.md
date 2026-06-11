@@ -95,3 +95,7 @@ Progress: 3/4 - ETA: 0m 26s - update started; waiting for it to finish.
 Progress: 3/4 - ETA: 0m 31s - update did not re-enable before timeout; verifying state.
 ```
 
+› Oh no, at the timeout it already is long usable again, it just failed to detect that. I believe that's because the HTML is replaced completely by the ajax once updated.
+
+› Like it even removed the button we placed, probably the whole page, at least an outer wrapper.
+
