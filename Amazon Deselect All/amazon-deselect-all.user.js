@@ -23,12 +23,13 @@
 (function () {
   'use strict';
 
-  // creates UI: start button after <a id="select-all"> and a progress bar
+  // creates UI: start button after <a id="select-all"> and a body-owned progress bar
   function createUI() {
     const selectAllAnchor = document.querySelector('a#select-all');
     if (!selectAllAnchor) return null;
 
     const container = document.createElement('div');
+    container.id = 'deselect-all-first-checkbox-ui';
     container.style.display = 'inline-block';
     container.style.marginLeft = '8px';
     container.style.verticalAlign = 'middle';
@@ -46,7 +47,14 @@
     progressWrap.id = 'deselect-progress-wrap';
     progressWrap.style.width = '360px';
     progressWrap.style.maxWidth = '80vw';
-    progressWrap.style.marginTop = '6px';
+    progressWrap.style.boxSizing = 'border-box';
+    progressWrap.style.padding = '8px';
+    progressWrap.style.background = '#fff';
+    progressWrap.style.border = '1px solid #d5d9d9';
+    progressWrap.style.borderRadius = '6px';
+    progressWrap.style.boxShadow = '0 2px 8px rgba(15, 17, 17, 0.15)';
+    progressWrap.style.zIndex = '2147483647';
+    progressWrap.style.display = 'none';
 
     const barBg = document.createElement('div');
     barBg.style.width = '100%';
@@ -74,10 +82,43 @@
     progressWrap.appendChild(status);
 
     container.appendChild(btn);
-    container.appendChild(progressWrap);
 
     selectAllAnchor.parentNode.insertBefore(container, selectAllAnchor.nextSibling);
+    document.body.appendChild(progressWrap);
+    positionProgress(progressWrap, container);
+    window.addEventListener('scroll', () => positionProgress(progressWrap, container), { passive: true });
+    window.addEventListener('resize', () => positionProgress(progressWrap, container), { passive: true });
     return { btn, bar, status };
+  }
+
+  function positionProgress(progressWrap, anchorEl) {
+    if (!progressWrap || progressWrap.style.display === 'none') return;
+
+    if (!anchorEl || !anchorEl.isConnected) {
+      progressWrap.style.position = 'fixed';
+      progressWrap.style.top = '12px';
+      progressWrap.style.right = '12px';
+      progressWrap.style.left = 'auto';
+      progressWrap.style.marginTop = '0';
+      return;
+    }
+
+    const rect = anchorEl.getBoundingClientRect();
+    const shouldFloat = rect.bottom < 0 || window.scrollY > anchorEl.offsetTop + anchorEl.offsetHeight + 20;
+    if (shouldFloat) {
+      progressWrap.style.position = 'fixed';
+      progressWrap.style.top = '12px';
+      progressWrap.style.right = '12px';
+      progressWrap.style.left = 'auto';
+      progressWrap.style.marginTop = '0';
+      return;
+    }
+
+    progressWrap.style.position = 'absolute';
+    progressWrap.style.top = `${window.scrollY + rect.bottom + 6}px`;
+    progressWrap.style.left = `${Math.min(window.scrollX + rect.left, window.scrollX + window.innerWidth - progressWrap.offsetWidth - 12)}px`;
+    progressWrap.style.right = 'auto';
+    progressWrap.style.marginTop = '0';
   }
 
   // main logic converted from earlier snippet
@@ -124,7 +165,7 @@
       return;
     }
 
-    async function logProgressWarn(index, startTs, currentName) {
+    async function logProgressWarn(index, startTs, currentName, isReal) {
       const done = index;
       const remaining = total - done;
       const elapsed = (Date.now() - startTs) / 1000;
@@ -148,11 +189,12 @@
       await waitFor(() => !chk.disabled, 10000).catch(() => {});
 
       if (chk.checked && !chk.disabled) {
-        chk.scrollIntoView({ block: 'center' });
+        await scrollToCheckbox(chk);
         chk.focus();
         chk.click();
-        // run progress log asynchronously ~500ms after click
-        (async () => { await delay(500); await logProgressWarn(i, start, entry.name); })();
+        // run progress log twice, once asynchronously ~500ms after click to come after Amazon's log stuff
+        await logProgressWarn(i, start, entry.name, true);
+        (async () => { await delay(500); await logProgressWarn(i, start, entry.name, false); })();
       } else {
         // if nothing to do, still log immediately with warn
         console.warn(`Progress: ${i}/${total} — ETA: calculating — Current: ${entry.name}`);
@@ -180,6 +222,11 @@
 
   function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
+  async function scrollToCheckbox(chk) {
+    chk.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    await delay(250);
+  }
+
   function waitFor(predicate, timeout = 10000, interval = 100) {
     const start = Date.now();
     return new Promise((resolve, reject) => {
@@ -199,6 +246,11 @@
     ui.btn.addEventListener('click', async function () {
       ui.btn.disabled = true;
       ui.btn.textContent = 'Running...';
+      const progressWrap = document.getElementById('deselect-progress-wrap');
+      if (progressWrap) {
+        progressWrap.style.display = 'block';
+        positionProgress(progressWrap, document.getElementById('deselect-all-first-checkbox-ui'));
+      }
       if (document.getElementById('deselect-progress-bar')) {
         document.getElementById('deselect-progress-bar').style.width = '0%';
       }
