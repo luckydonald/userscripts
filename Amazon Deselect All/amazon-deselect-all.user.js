@@ -212,7 +212,11 @@
       const etaSec = Math.round(avg * remaining);
       const mm = Math.floor(etaSec / 60);
       const ss = etaSec % 60;
-      return `Progress: ${done}/${total} - ETA: ${mm}m ${ss}s - Current: ${currentName}`;
+      const txt = `Progress: ${done}/${total} - ETA: ${mm}m ${ss}s`;
+      if (currentName) {
+        return `${txt} - Current: ${currentName}`;
+      }
+      return txt;
     }
 
     const start = Date.now();
@@ -223,38 +227,41 @@
       const lab = chk.closest('label');
       const itemNumber = i + 1;
       if (lab) lab.style.background = 'hotpink';
-      setSegment(i, '#9e9e9e', `${itemNumber}/${total}: working - ${entry.name}`);
+      setSegment(i, '#9e9e9e', `${itemNumber}/${total}: - ${entry.name}`);
+      logStep(`[STARTING] ${progressText(i, start, entry.name)}`);
 
-      logStep(`${progressText(i, start, entry.name)} - waiting until checkbox is enabled.`);
+      // scroll
+      logStep(`${progressText(i, start)} - scrolling to checkbox.`);
+      await scrollToCheckbox(chk);
 
       // wait until enabled
+      logStep(`${progressText(i, start)} - waiting until checkbox is enabled.`);
       const enabled = await waitFor(() => !chk.disabled, 10000).then(() => true).catch(() => false);
 
       if (enabled && chk.checked && !chk.disabled) {
-        logStep(`${progressText(i, start, entry.name)} - scrolling to checkbox.`);
-        await scrollToCheckbox(chk);
-        logStep(`${progressText(i, start, entry.name)} - clicking checkbox.`);
+        logStep(`${progressText(i, start)} - clicking checkbox.`);
         chk.focus();
         chk.click();
       } else {
-        logStep(`${progressText(i, start, entry.name)} - skipped click because checkbox is ${enabled ? 'already deselected' : 'still disabled'}.`);
+        logStep(`${progressText(i, start)} - skipped click because checkbox is ${enabled ? 'already deselected' : 'still disabled'}.`);
       }
 
       // wait for disabled->enabled cycle if it occurs
-      logStep(`${progressText(i, start, entry.name)} - waiting for Amazon update to start.`);
+      logStep(`${progressText(i, start)} - waiting for Amazon update to start.`);
       const becameDisabled = await waitFor(() => chk.disabled === true, 5000).then(() => true).catch(() => false);
-      logStep(`${progressText(i, start, entry.name)} - update ${becameDisabled ? 'started' : 'did not disable checkbox'}; waiting for it to finish.`);
+      logStep(`${progressText(i, start)} - update ${becameDisabled ? 'started' : 'did not disable checkbox'}; waiting for it to finish.`);
       const becameEnabled = await waitFor(() => chk.disabled === false, 15000).then(() => true).catch(() => false);
-      logStep(`${progressText(i, start, entry.name)} - update ${becameEnabled ? 'finished' : 'did not re-enable before timeout'}; verifying state.`);
+      logStep(`${progressText(i, start)} - update ${becameEnabled ? 'finished' : 'did not re-enable before timeout'}; verifying state.`);
 
       await delay(300);
       if (chk.checked) {
         setSegment(i, '#ff9800', `${itemNumber}/${total}: still selected - ${entry.name}`);
-        logStep(`${progressText(itemNumber, start, entry.name)} - still selected after timeouts.`);
+        logStep(`${progressText(itemNumber, start)} - still selected after timeouts.`);
       } else {
         setSegment(i, '#4caf50', `${itemNumber}/${total}: deselected - ${entry.name}`);
-        logStep(`${progressText(itemNumber, start, entry.name)} - confirmed deselected.`);
+        logStep(`${progressText(itemNumber, start)} - confirmed deselected.`);
       }
+      logStep(`[COMPLETE] ${progressText(i, start, entry.name)}`);
     }
 
     // final log and UI update
