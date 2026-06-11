@@ -66,3 +66,5 @@
   next checkbox to click
 
 
+› @"Amazon Deselect All/amazon-deselect-all.user.js": Make the progress bar segments. Check after the timeouts, if the element is actually deselected. If not make it orange, otherwise make it green if successful. Have a proper in-between logging of what it is doing (to both the UI and console.log)
+

@@ -61,19 +61,15 @@
     progressWrap.style.display = 'none';
 
     const barBg = document.createElement('div');
+    barBg.id = 'deselect-progress-segments';
     barBg.style.width = '100%';
     barBg.style.height = '12px';
     barBg.style.background = '#eee';
     barBg.style.border = '1px solid #ccc';
     barBg.style.borderRadius = '6px';
     barBg.style.overflow = 'hidden';
-
-    const bar = document.createElement('div');
-    bar.id = 'deselect-progress-bar';
-    bar.style.width = '0%';
-    bar.style.height = '100%';
-    bar.style.background = '#4caf50';
-    bar.style.transition = 'width 200ms linear';
+    barBg.style.display = 'flex';
+    barBg.style.gap = '1px';
 
     const status = document.createElement('div');
     status.id = 'deselect-progress-status';
@@ -81,9 +77,18 @@
     status.style.marginTop = '6px';
     status.style.color = '#333';
 
-    barBg.appendChild(bar);
+    const log = document.createElement('div');
+    log.id = 'deselect-progress-log';
+    log.style.fontSize = '11px';
+    log.style.marginTop = '6px';
+    log.style.color = '#555';
+    log.style.maxHeight = '90px';
+    log.style.overflowY = 'auto';
+    log.style.lineHeight = '1.35';
+
     progressWrap.appendChild(barBg);
     progressWrap.appendChild(status);
+    progressWrap.appendChild(log);
 
     container.appendChild(btn);
 
@@ -92,7 +97,7 @@
     positionProgress(progressWrap, container);
     window.addEventListener('scroll', () => positionProgress(progressWrap, container), { passive: true });
     window.addEventListener('resize', () => positionProgress(progressWrap, container), { passive: true });
-    return { btn, bar, status };
+    return { btn, segments: barBg, status, log };
   }
 
   function positionProgress(progressWrap, anchorEl) {
@@ -159,69 +164,101 @@
 
     const toUncheck = targetEntries.filter(e => e.checkbox.checked);
     const total = toUncheck.length;
-    const uiBar = document.getElementById('deselect-progress-bar');
+    const uiSegments = document.getElementById('deselect-progress-segments');
     const uiStatus = document.getElementById('deselect-progress-status');
+    const uiLog = document.getElementById('deselect-progress-log');
 
     if (total === 0) {
-      console.log('No active checkboxes to uncheck.');
-      if (uiBar) { uiBar.style.width = '100%'; }
-      if (uiStatus) { uiStatus.textContent = 'No active checkboxes to uncheck.'; }
+      logStep('No active checkboxes to uncheck.');
       return;
     }
 
-    async function logProgressWarn(index, startTs, currentName, isReal) {
-      const done = index;
+    if (uiSegments) {
+      uiSegments.replaceChildren(...Array.from({ length: total }, (_, index) => {
+        const segment = document.createElement('div');
+        segment.className = 'deselect-progress-segment';
+        segment.title = `${index + 1}/${total}`;
+        segment.style.flex = '1 1 0';
+        segment.style.height = '100%';
+        segment.style.minWidth = '2px';
+        segment.style.background = '#ddd';
+        segment.style.transition = 'background-color 150ms linear';
+        return segment;
+      }));
+    }
+
+    function setSegment(index, color, title) {
+      const segment = uiSegments ? uiSegments.children[index] : null;
+      if (!segment) return;
+      segment.style.background = color;
+      if (title) segment.title = title;
+    }
+
+    function logStep(message) {
+      console.log(`[Amazon Deselect All] ${message}`);
+      if (uiStatus) uiStatus.textContent = message;
+      if (!uiLog) return;
+      const line = document.createElement('div');
+      line.textContent = message;
+      uiLog.appendChild(line);
+      while (uiLog.children.length > 12) uiLog.removeChild(uiLog.firstChild);
+      uiLog.scrollTop = uiLog.scrollHeight;
+    }
+
+    function progressText(done, startTs, currentName) {
       const remaining = total - done;
       const elapsed = (Date.now() - startTs) / 1000;
       const avg = elapsed / (done || 1);
       const etaSec = Math.round(avg * remaining);
       const mm = Math.floor(etaSec / 60);
       const ss = etaSec % 60;
-      console.warn(`Progress: ${done}/${total} — ETA: ${mm}m ${ss}s — Current: ${currentName}`);
-      if (uiBar) uiBar.style.width = `${Math.round((done / total) * 100)}%`;
-      if (uiStatus) uiStatus.textContent = `Progress: ${done}/${total} — ETA: ${mm}m ${ss}s — Current: ${currentName}`;
+      return `Progress: ${done}/${total} - ETA: ${mm}m ${ss}s - Current: ${currentName}`;
     }
 
     const start = Date.now();
+    logStep(`Found ${total} checked active item${total === 1 ? '' : 's'} to deselect.`);
     for (let i = 0; i < toUncheck.length; i++) {
       const entry = toUncheck[i];
       const chk = entry.checkbox;
       const lab = chk.closest('label');
+      const itemNumber = i + 1;
       if (lab) lab.style.background = 'hotpink';
+      setSegment(i, '#9e9e9e', `${itemNumber}/${total}: working - ${entry.name}`);
+
+      logStep(`${progressText(i, start, entry.name)} - waiting until checkbox is enabled.`);
 
       // wait until enabled
-      await waitFor(() => !chk.disabled, 10000).catch(() => {});
+      const enabled = await waitFor(() => !chk.disabled, 10000).then(() => true).catch(() => false);
 
-      if (chk.checked && !chk.disabled) {
+      if (enabled && chk.checked && !chk.disabled) {
+        logStep(`${progressText(i, start, entry.name)} - scrolling to checkbox.`);
         await scrollToCheckbox(chk);
+        logStep(`${progressText(i, start, entry.name)} - clicking checkbox.`);
         chk.focus();
         chk.click();
-        // run progress log twice, once asynchronously ~500ms after click to come after Amazon's log stuff
-        await logProgressWarn(i, start, entry.name, true);
-        (async () => { await delay(500); await logProgressWarn(i, start, entry.name, false); })();
       } else {
-        // if nothing to do, still log immediately with warn
-        console.warn(`Progress: ${i}/${total} — ETA: calculating — Current: ${entry.name}`);
-        if (uiStatus) uiStatus.textContent = `Progress: ${i}/${total} — ETA: calculating — Current: ${entry.name}`;
+        logStep(`${progressText(i, start, entry.name)} - skipped click because checkbox is ${enabled ? 'already deselected' : 'still disabled'}.`);
       }
 
       // wait for disabled->enabled cycle if it occurs
-      await waitFor(() => chk.disabled === true, 5000).catch(() => { });
-      await waitFor(() => chk.disabled === false, 15000).catch(() => { });
+      logStep(`${progressText(i, start, entry.name)} - waiting for Amazon update to start.`);
+      const becameDisabled = await waitFor(() => chk.disabled === true, 5000).then(() => true).catch(() => false);
+      logStep(`${progressText(i, start, entry.name)} - update ${becameDisabled ? 'started' : 'did not disable checkbox'}; waiting for it to finish.`);
+      const becameEnabled = await waitFor(() => chk.disabled === false, 15000).then(() => true).catch(() => false);
+      logStep(`${progressText(i, start, entry.name)} - update ${becameEnabled ? 'finished' : 'did not re-enable before timeout'}; verifying state.`);
 
       await delay(300);
       if (chk.checked) {
-        try {
-          chk.checked = false;
-          chk.dispatchEvent(new Event('change', { bubbles: true }));
-        } catch (e) { /* ignore */ }
+        setSegment(i, '#ff9800', `${itemNumber}/${total}: still selected - ${entry.name}`);
+        logStep(`${progressText(itemNumber, start, entry.name)} - still selected after timeouts.`);
+      } else {
+        setSegment(i, '#4caf50', `${itemNumber}/${total}: deselected - ${entry.name}`);
+        logStep(`${progressText(itemNumber, start, entry.name)} - confirmed deselected.`);
       }
     }
 
     // final log and UI update
-    console.warn(`Progress: ${total}/${total} — ETA: 0m 0s — Current: Done`);
-    if (uiBar) uiBar.style.width = '100%';
-    if (uiStatus) uiStatus.textContent = `Progress: ${total}/${total} — Done`;
+    logStep(`Progress: ${total}/${total} - Done`);
   }
 
   function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
@@ -255,11 +292,14 @@
         progressWrap.style.display = 'block';
         positionProgress(progressWrap, document.getElementById('deselect-all-first-checkbox-ui'));
       }
-      if (document.getElementById('deselect-progress-bar')) {
-        document.getElementById('deselect-progress-bar').style.width = '0%';
+      if (document.getElementById('deselect-progress-segments')) {
+        document.getElementById('deselect-progress-segments').replaceChildren();
       }
       if (document.getElementById('deselect-progress-status')) {
         document.getElementById('deselect-progress-status').textContent = 'Starting...';
+      }
+      if (document.getElementById('deselect-progress-log')) {
+        document.getElementById('deselect-progress-log').replaceChildren();
       }
       try {
         await runDeselectUIUpdate();
