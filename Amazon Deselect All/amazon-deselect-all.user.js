@@ -212,7 +212,7 @@
       const etaSec = Math.round(avg * remaining);
       const mm = Math.floor(etaSec / 60);
       const ss = etaSec % 60;
-      const txt = `Progress: ${done}/${total} - ETA: ${mm}m ${ss}s`;
+      const txt = `Progress: ${done + 1}/${total} - ETA: ${mm}m ${ss}s`;
       if (currentName) {
         return `${txt} - Current: ${currentName}`;
       }
