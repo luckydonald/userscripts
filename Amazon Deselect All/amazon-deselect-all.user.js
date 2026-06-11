@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Amazon: Deselect all
 // @namespace    http://tampermonkey.net/
-// @description  Uncheck first (non-gift) checkbox of each active item in the "Active Items" list, waiting for enable/disable cycles and showing progress.
+// @description  Uncheck the checkbox of each active item in the "Shopping Basket" list, waiting for enable/disable cycles and showing progress.
 // @author       luckylucy
 // @include      https://*.amazon.*/gp/cart/view.html
 // @include      https://*.amazon.*/gp/cart/view.html?*
@@ -39,7 +39,7 @@
     container.style.verticalAlign = 'middle';
 
     const btn = document.createElement('button');
-    btn.textContent = 'Deselect all (first checkbox)';
+    btn.textContent = 'Deselect all';
     btn.id = 'deselect-all-first-checkbox-btn';
     btn.style.padding = '6px 10px';
     btn.style.cursor = 'pointer';
@@ -270,7 +270,7 @@
         }
       } finally {
         ui.btn.disabled = false;
-        ui.btn.textContent = 'Deselect all (first checkbox)';
+        ui.btn.textContent = 'Deselect all';
       }
     }, { once: false });
   }
