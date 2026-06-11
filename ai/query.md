@@ -70,3 +70,28 @@
 
 › $committing-with-lplp-style @"Amazon Deselect All/amazon-deselect-all.user.js"
 
+› only the first click is succeeding (it is hanging on:
+```log
+Progress: 0/4 - ETA: 0m 0s - scrolling to checkbox.
+Progress: 0/4 - ETA: 0m 1s - waiting until checkbox is enabled.
+Progress: 0/4 - ETA: 0m 1s - clicking checkbox.
+Progress: 0/4 - ETA: 0m 1s - waiting for Amazon update to start.
+Progress: 0/4 - ETA: 0m 1s - update started; waiting for it to finish.
+```
+then it continues with
+```log
+Progress: 0/4 - ETA: 1m 1s - update did not re-enable before timeout; verifying state.
+Progress: 0/4 - ETA: 1m 1s - confirmed deselected.
+```
+Then for the next ones it's like this:
+```
+[STARTING] Progress: 3/4 - ETA: 0m 22s - Current: Strait Jacket Chastity Belt for Women Men Sex Bondage Bag Selfbondage Self Bondage Bdsms Lingerie Slave Sexy Lingerie Women for Sex Latex Clothing Domina Outfit BDSMs Toy Extreme for WomenStrait Jacket Chastity Belt for Women Men Sex Bondage Bag Selfbondage Self Bondage Bdsms Lingerie Slave Sexy Lingerie Women for Sex Latex Clothing…
+Progress: 3/4 - ETA: 0m 22s - scrolling to checkbox.
+Progress: 3/4 - ETA: 0m 23s - waiting until checkbox is enabled.
+Progress: 3/4 - ETA: 0m 26s - skipped click because checkbox is still disabled.
+Progress: 3/4 - ETA: 0m 26s - waiting for Amazon update to start.
+Progress: 3/4 - ETA: 0m 26s - update started; waiting for it to finish.
+# hang
+Progress: 3/4 - ETA: 0m 31s - update did not re-enable before timeout; verifying state.
+```
+

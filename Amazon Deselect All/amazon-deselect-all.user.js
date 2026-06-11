@@ -132,22 +132,26 @@
 
   // main logic converted from earlier snippet
   async function runDeselectUIUpdate() {
-    const list = document.querySelector('ul[data-name="Active Items"].sc-list-body');
+    const activeItemsListSelector = 'ul[data-name="Active Items"].sc-list-body';
+    const list = document.querySelector(activeItemsListSelector);
     if (!list) {
       console.error('List not found');
       alert('Active Items list not found on page.');
       return;
     }
 
-    const items = Array.from(list.querySelectorAll('div[data-asin]'));
-    const activeItems = items.filter(it => {
-      const itemType = it.getAttribute('data-itemtype') || '';
-      const outOfStock = it.getAttribute('data-outofstock');
-      return itemType === 'active' && outOfStock !== '1';
-    });
+    function getActiveItems() {
+      const currentList = document.querySelector(activeItemsListSelector);
+      if (!currentList) return [];
+      return Array.from(currentList.querySelectorAll('div[data-asin]')).filter(it => {
+        const itemType = it.getAttribute('data-itemtype') || '';
+        const outOfStock = it.getAttribute('data-outofstock');
+        return itemType === 'active' && outOfStock !== '1';
+      });
+    }
 
-    const targetEntries = activeItems.map(it => {
-      const labelCheckboxes = Array.from(it.querySelectorAll('label input[type="checkbox"]'));
+    function findCartCheckbox(item) {
+      const labelCheckboxes = Array.from(item.querySelectorAll('label input[type="checkbox"]'));
       let chosen = null;
       for (const inp of labelCheckboxes) {
         const lab = inp.closest('label');
@@ -157,9 +161,38 @@
         break;
       }
       if (!chosen && labelCheckboxes.length) chosen = labelCheckboxes[0];
-      const titleEl = it.querySelector('h3 span') || it.querySelector('[data-a-size="medium_plus"]') || it.querySelector('img[alt]');
+      return chosen;
+    }
+
+    function getItemName(item) {
+      const titleEl = item.querySelector('h3 span') || item.querySelector('[data-a-size="medium_plus"]') || item.querySelector('img[alt]');
       const name = titleEl ? (titleEl.innerText || titleEl.alt || 'Unnamed item') : 'Unnamed item';
-      return { root: it, checkbox: chosen, name: name.trim() };
+      return name.trim();
+    }
+
+    function resolveEntry(entry) {
+      const currentItems = getActiveItems();
+      let item = currentItems.find(it => it === entry.root);
+      if (!item && entry.asin) {
+        item = currentItems.find(it => it.getAttribute('data-asin') === entry.asin);
+      }
+      if (!item) return null;
+      return {
+        root: item,
+        checkbox: findCartCheckbox(item),
+        name: getItemName(item) || entry.name,
+      };
+    }
+
+    const activeItems = getActiveItems();
+
+    const targetEntries = activeItems.map(it => {
+      return {
+        root: it,
+        asin: it.getAttribute('data-asin') || '',
+        checkbox: findCartCheckbox(it),
+        name: getItemName(it),
+      };
     }).filter(e => e.checkbox);
 
     const toUncheck = targetEntries.filter(e => e.checkbox.checked);
@@ -219,16 +252,28 @@
       return txt;
     }
 
+    async function waitForResolvedCheckbox(entry, timeout) {
+      let latest = resolveEntry(entry);
+      if (latest && latest.checkbox && !latest.checkbox.disabled) return latest;
+      await waitFor(() => {
+        latest = resolveEntry(entry);
+        return latest && latest.checkbox && (!latest.checkbox.checked || !latest.checkbox.disabled);
+      }, timeout);
+      return latest;
+    }
+
     const start = Date.now();
     logStep(`Found ${total} checked active item${total === 1 ? '' : 's'} to deselect.`);
     for (let i = 0; i < toUncheck.length; i++) {
       const entry = toUncheck[i];
-      const chk = entry.checkbox;
+      let latest = resolveEntry(entry);
+      let chk = latest ? latest.checkbox : entry.checkbox;
+      let name = latest ? latest.name : entry.name;
       const lab = chk.closest('label');
       const itemNumber = i + 1;
       if (lab) lab.style.background = 'hotpink';
-      setSegment(i, '#9e9e9e', `${itemNumber}/${total}: - ${entry.name}`);
-      logStep(`[STARTING] ${progressText(i, start, entry.name)}`);
+      setSegment(i, '#9e9e9e', `${itemNumber}/${total}: - ${name}`);
+      logStep(`[STARTING] ${progressText(i, start, name)}`);
 
       // scroll
       logStep(`${progressText(i, start)} - scrolling to checkbox.`);
@@ -236,32 +281,55 @@
 
       // wait until enabled
       logStep(`${progressText(i, start)} - waiting until checkbox is enabled.`);
-      const enabled = await waitFor(() => !chk.disabled, 10000).then(() => true).catch(() => false);
+      const enabled = await waitForResolvedCheckbox(entry, 30000).then(resolved => {
+        latest = resolved;
+        chk = latest.checkbox;
+        name = latest.name;
+        return !chk.checked || !chk.disabled;
+      }).catch(() => false);
 
       if (enabled && chk.checked && !chk.disabled) {
         logStep(`${progressText(i, start)} - clicking checkbox.`);
+        await scrollToCheckbox(chk);
         chk.focus();
         chk.click();
       } else {
         logStep(`${progressText(i, start)} - skipped click because checkbox is ${enabled ? 'already deselected' : 'still disabled'}.`);
       }
 
-      // wait for disabled->enabled cycle if it occurs
+      // Amazon may replace rows or leave the clicked checkbox disabled, so re-resolve before each check.
       logStep(`${progressText(i, start)} - waiting for Amazon update to start.`);
-      const becameDisabled = await waitFor(() => chk.disabled === true, 5000).then(() => true).catch(() => false);
+      const becameDisabled = await waitFor(() => {
+        const resolved = resolveEntry(entry);
+        if (!resolved || !resolved.checkbox) return true;
+        chk = resolved.checkbox;
+        name = resolved.name;
+        return chk.disabled === true || chk.checked === false;
+      }, 5000).then(() => true).catch(() => false);
       logStep(`${progressText(i, start)} - update ${becameDisabled ? 'started' : 'did not disable checkbox'}; waiting for it to finish.`);
-      const becameEnabled = await waitFor(() => chk.disabled === false, 15000).then(() => true).catch(() => false);
+      const becameEnabled = await waitFor(() => {
+        const resolved = resolveEntry(entry);
+        if (!resolved || !resolved.checkbox) return true;
+        chk = resolved.checkbox;
+        name = resolved.name;
+        return chk.checked === false || chk.disabled === false;
+      }, 30000).then(() => true).catch(() => false);
       logStep(`${progressText(i, start)} - update ${becameEnabled ? 'finished' : 'did not re-enable before timeout'}; verifying state.`);
 
       await delay(300);
+      latest = resolveEntry(entry);
+      if (latest && latest.checkbox) {
+        chk = latest.checkbox;
+        name = latest.name;
+      }
       if (chk.checked) {
-        setSegment(i, '#ff9800', `${itemNumber}/${total}: still selected - ${entry.name}`);
+        setSegment(i, '#ff9800', `${itemNumber}/${total}: still selected - ${name}`);
         logStep(`${progressText(itemNumber, start)} - still selected after timeouts.`);
       } else {
-        setSegment(i, '#4caf50', `${itemNumber}/${total}: deselected - ${entry.name}`);
+        setSegment(i, '#4caf50', `${itemNumber}/${total}: deselected - ${name}`);
         logStep(`${progressText(itemNumber, start)} - confirmed deselected.`);
       }
-      logStep(`[COMPLETE] ${progressText(i, start, entry.name)}`);
+      logStep(`[COMPLETE] ${progressText(i, start, name)}`);
     }
 
     // final log and UI update
