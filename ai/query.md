@@ -26,3 +26,43 @@
 
 #### Previous user prompts:
 
+🦆> write me a js to paste into the browser console which unchecks all checkboxes, but waits for them being disabled and enabled between unchecking them.
+    Log the progress including x/y, time estimate and the current item name (here: "Anker Soundcore 2 Portable Bluetooth Speaker with 12 W Stereo Sound, BassUp, IPX7 Waterproof, 24-Hour Playtime, Wireless Stereo Pairing, Speaker for Home, Outdoors, Travel")
+    The list is this:
+    ```html
+    <ul data-name="Active Items" aria-labelledby="sc-active-items-header" class="a-unordered-list a-nostyle a-vertical a-spacing-mini sc-list-body sc-java-remote-feature">…</ul>
+    ```
+    Notice that the product div has multiple checkboxes and only the first one is interesting (i.e. not the gift one and no additional ones like payment plans or insurances offers).
+    Also obviously skip already deactivated products, don't include those in the ETA.
+    Set the bg of the label of the checkboxes you want to uncheck to hotpink.
+    Send only the code, but wrap it in markdown formatting code block.
+    alright here's one example div you would iterate over actually:
+    @ai/references/snippets/amazon/cart.md
+
+🦆> use warn level for logProgress, run logProgress async 500ms after clicking.
+🦆> Convert into an userscript with an additional on-page progressbar display, and the button to start added right after `<a id="select-all" …>…</a>`.
+    Header:
+    ```user.js
+    // ==UserScript==
+    // @name         Amazon: Deselect all
+    // @namespace    tampermonkey.net/
+    // @version      2026-06-11
+    // @description  …
+    // @author       luckylucy
+    // @match        https://www.amazon.de/-/en/gp/cart/view.html
+    // @icon         www.google.com/s2/favicons?sz=64&domain=amazon.de
+    // ==/UserScript==
+    ```
+    add headers as needed.
+
+🦆> How do I make it update check from github?
+    raw.githubusercontent.com/luckydonald/userscripts/refs/heads/mane/Amazon Deselect All/amazon-deselect-all.user.js
+
+🦆> Can I write the `@supportURL` make start the title with `[Amazon: Deselect all] `?
+
+🦆> can I add regexeses to match other amazons too?
+
+› FIX @"Amazon Deselect All/amazon-deselect-all.user.js" to not remove the progress bar UI when clicking, to make the progress bar floating if scrolled down, autoscroll to the
+  next checkbox to click
+
+
