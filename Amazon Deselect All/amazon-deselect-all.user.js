@@ -1,7 +1,6 @@
 // ==UserScript==
 // @name         Amazon: Deselect all
 // @namespace    http://tampermonkey.net/
-// @version      2026-06-11
 // @description  Uncheck first (non-gift) checkbox of each active item in the "Active Items" list, waiting for enable/disable cycles and showing progress.
 // @author       luckylucy
 // @match        https://www.amazon.de/-/en/gp/cart/view.html
