@@ -4,12 +4,16 @@
 // @description  Uncheck first (non-gift) checkbox of each active item in the "Active Items" list, waiting for enable/disable cycles and showing progress.
 // @author       luckylucy
 // @include      https://*.amazon.*/gp/cart/view.html
+// @include      https://*.amazon.*/gp/cart/view.html?*
 // @include      https://*.amazon.*/*/gp/cart/view.html
+// @include      https://*.amazon.*/*/gp/cart/view.html?*
+// @include      https://*.amazon.*/cart/add-to-cart/*
 // @match        https://www.amazon.de/-/en/gp/cart/view.html
 // @match        https://www.amazon.com/gp/cart/view.html
 // @match        https://www.amazon.co.uk/gp/cart/view.html
 // @match        https://www.amazon.ca/gp/cart/view.html
 // @match        https://www.amazon.co.jp/gp/cart/view.html
+// @match        https://www.amazon.de/cart/add-to-cart/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.de
 // @updateURL    https://raw.githubusercontent.com/luckydonald/userscripts/refs/heads/mane/Amazon%20Deselect%20All/amazon-deselect-all.user.js
 // @downloadURL  https://raw.githubusercontent.com/luckydonald/userscripts/refs/heads/mane/Amazon%20Deselect%20All/amazon-deselect-all.user.js
